@@ -1,34 +1,44 @@
 import numpy as np
+from sklearn.preprocessing import StandardScaler
 
-class LinearRegression:
-
-    def __init__(self, n_iterarions=1000, rate=0.0001):
-        self.n_iterarions = n_iterarions
+class LinearRegression1:
+    def __init__(self, n_iterations=100, rate=0.001):
+        self.n_iterations = n_iterations
         self.rate = rate
         self.weights = None
         self.bias = 0
         self.costs = None
+        self.X_scaler = StandardScaler()
+        self.y_scaler = StandardScaler()
 
     def fit(self, X, y):
-        self.costs = np.empty(self.n_iterarions)
-        y = y.reshape(-1, 1)
-        self.n_samples, self.n_features = X.shape
-        self.weights = np.zeros(self.n_features)
+        X_scaled = self.X_scaler.fit_transform(X)
+        y_scaled = self.y_scaler.fit_transform(np.array(y).reshape(-1, 1))
 
-        for i in range(self.n_iterarions):
-            y_pred = np.dot(X, self.weights) + self.bias
-            dw = (1 / self.n_samples) * np.dot(X.T, y_pred - y)
-            db = (1 / self.n_samples) * np.sum(y_pred - y)
+        self.n_samples, self.n_features = X_scaled.shape
+
+        self.weights = np.zeros((self.n_features, 1))
+        self.bias = 0
+        self.costs = np.zeros(self.n_iterations)
+
+        for i in range(self.n_iterations):
+            y_pred = np.dot(X_scaled, self.weights) + self.bias
+            errors = y_pred - y_scaled
+
+            dw = (1 / self.n_samples) * np.dot(X_scaled.T, errors)
+            db = (1 / self.n_samples) * np.sum(errors)
+
             self.weights -= self.rate * dw
             self.bias -= self.rate * db
-            self.costs[i] = self._cost(y_pred, y)
 
+            self.costs[i] = np.mean(errors ** 2)
+            
     def predict(self, X):
-        return np.dot(X, self.weights) + self.bias
-    
-    def _cost(self, y1, y2):
-        return (2 / self.n_samples) * np.sum((y1 - y2)**2)
+        X_scaled = self.X_scaler.transform(X)
+        y_pred = np.dot(X_scaled, self.weights) + self.bias
+        return self.y_scaler.inverse_transform(y_pred.reshape(-1, 1))
 
-    def score(self, y_pred, y):
-        return 1 - np.mean((y_pred - y)**2)/np.mean((y - y.mean())**2)
-    
+    def score(self, X, y):
+        y_pred = self.predict(X)
+        y = np.array(y).reshape(-1, 1)
+        return 1 - np.mean((y_pred - y)**2) / np.mean((y - y.mean())**2)
